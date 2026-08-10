@@ -1,7 +1,9 @@
 #include "Phone.h"
 #include "Util/Events.h"
+#include <functional>
+#include <esp_log.h>
 
-Phone::Phone(BLE::Server* server, BLE::Client* client) : ancs(client), cTime(client), bangle(server){
+Phone::Phone(BLE::Server* server, BLE::Client* client) : ancs(client), ams(client), cTime(client), android(server){
 	auto reg = [this](NotifSource* src){
 		src->setOnConnect([this, src](){ onConnect(src); });
 		src->setOnDisconnect([this, src](){ onDisconnect(src); });
@@ -11,7 +13,17 @@ Phone::Phone(BLE::Server* server, BLE::Client* client) : ancs(client), cTime(cli
 	};
 
 	reg(&ancs);
-	reg(&bangle);
+	reg(&android);
+
+	auto mreg = [this](MediaSource* src){
+		src->setOnConnect([this, src](){ onMediaConnect(src); });
+		src->setOnDisconnect([this, src](){ onMediaDisconnect(src); });
+		src->setOnMediaInfo([this](const MediaInfo& media){ onMediaInfo(media); });
+		src->setOnMediaState([this](MediaState state){ onMediaState(state); });
+	};
+
+	mreg(&android);
+	mreg(&ams);
 }
 
 bool Phone::isConnected(){
@@ -20,7 +32,7 @@ bool Phone::isConnected(){
 
 Phone::PhoneType Phone::getPhoneType(){
 	if(current == &ancs) return PhoneType::IPhone;
-	else if(current == &bangle) return PhoneType::Android;
+	else if(current == &android) return PhoneType::Android;
 	else return PhoneType::None;
 }
 
@@ -42,6 +54,39 @@ uint32_t Phone::getNotifsCount() const{
 	return notifs.size();
 }
 
+Notif Phone::getCall(){
+	for(const auto& notif : notifs){
+		if(notif.category == Notif::Category::IncomingCall){
+			return notif;
+		}
+	}
+
+	return {};
+}
+
+void Phone::callIgnore(uint32_t uid){
+	auto notif = findNotif(uid);
+	if(notif == notifs.end()) return;
+	notifs.erase(notif);
+}
+
+void Phone::callReject(uint32_t uid){
+	auto notif = findNotif(uid);
+	if(notif == notifs.end()) return;
+	notifs.erase(notif);
+	if(current == &android){
+		current->actionNeg(uid);
+	}
+}
+
+const MediaInfo& Phone::getMedia() const{
+	return currentMedia;
+}
+
+MediaState Phone::getMediaState(){
+	return currentMediaState;
+}
+
 void Phone::doPos(uint32_t id){
 	if(current == nullptr || findNotif(id) == notifs.end()) return;
 	current->actionPos(id);
@@ -52,6 +97,26 @@ void Phone::doNeg(uint32_t id){
 	current->actionNeg(id);
 }
 
+void Phone::doMediaPlay(){
+	if(mediaCurrent == nullptr) return;
+	mediaCurrent->mediaPlay();
+}
+
+void Phone::doMediaPause(){
+	if(mediaCurrent == nullptr) return;
+	mediaCurrent->mediaPause();
+}
+
+void Phone::doMediaNext(){
+	if(mediaCurrent == nullptr) return;
+	mediaCurrent->mediaNext();
+}
+
+void Phone::doMediaPrev(){
+	if(mediaCurrent == nullptr) return;
+	mediaCurrent->mediaPrev();
+}
+
 void Phone::onConnect(NotifSource* src){
 	current = src;
 	Events::post(Facility::Phone, Event { .action = Event::Connected, .data = { .phoneType = getPhoneType() } });
@@ -60,6 +125,9 @@ void Phone::onConnect(NotifSource* src){
 		notifs.clear();
 		Events::post(Facility::Phone, Event { .action = Event::Cleared, .data = { .phoneType = getPhoneType() } });
 	}
+
+	currentMediaState = MediaState::Stopped;
+	currentMedia = {};
 }
 
 void Phone::onDisconnect(NotifSource* src){
@@ -71,6 +139,30 @@ void Phone::onDisconnect(NotifSource* src){
 		notifs.clear();
 		Events::post(Facility::Phone, Event { .action = Event::Cleared, .data = { .phoneType = getPhoneType() } });
 	}
+}
+
+void Phone::onMediaConnect(MediaSource* src){
+	mediaCurrent = src;
+	Events::post(Facility::Phone, Event { .action = Event::MediaConnected });
+}
+
+void Phone::onMediaDisconnect(MediaSource* src){
+	if(mediaCurrent != src) return;
+	mediaCurrent = nullptr;
+	Events::post(Facility::Phone, Event { .action = Event::MediaDisconnected });
+
+	currentMediaState = MediaState::Stopped;
+	currentMedia = {};
+}
+
+void Phone::onMediaInfo(const MediaInfo& media){
+	currentMedia = media;
+	Events::post(Facility::Phone, Event { .action = Event::MediaInfo });
+}
+
+void Phone::onMediaState(MediaState state){
+	currentMediaState = state;
+	Events::post(Facility::Phone, Event { .action = Event::MediaState, .data = { .mediaState = getMediaState() } });
 }
 
 void Phone::onAdd(Notif notif){
@@ -111,11 +203,16 @@ void Phone::onRemove(uint32_t id){
 }
 
 void Phone::findPhoneStart(){
-	if(current != &bangle) return;
-	bangle.findPhoneStart();
+	if(current != &android) return;
+	android.findPhoneStart();
 }
 
 void Phone::findPhoneStop(){
-	if(current != &bangle) return;
-	bangle.findPhoneStop();
+	if(current != &android) return;
+	android.findPhoneStop();
+}
+
+bool Phone::findPhoneActive(){
+	if(current != &android) return false;
+	return android.findPhoneActive();
 }

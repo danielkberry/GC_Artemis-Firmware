@@ -1,13 +1,15 @@
 #ifndef CLOCKSTAR_FIRMWARE_PHONE_H
 #define CLOCKSTAR_FIRMWARE_PHONE_H
 
-
-#include <cstdint>
-#include "Bangle.h"
+#include "Android.h"
 #include "ANCS/Client.h"
+#include "AMS/Client.h"
 #include "CurrentTime.h"
 #include "NotifSource.h"
+#include "MediaSource.h"
 #include <deque>
+#include <cstdint>
+#include <optional>
 
 class Phone {
 public:
@@ -17,10 +19,12 @@ public:
 	};
 
 	struct Event {
-		enum { Connected, Disconnected, Added, Changed, Removed, Cleared } action;
+		enum { Connected, Disconnected, Added, Changed, Removed, Cleared,
+		      MediaConnected, MediaDisconnected, MediaState, MediaInfo } action;
 		union {
 			struct { uint32_t id; } addChgRem;
 			PhoneType phoneType;
+			::MediaState mediaState;
 		} data;
 	};
 
@@ -35,21 +39,46 @@ public:
 	std::vector<Notif> getNotifs();
 	uint32_t getNotifsCount() const;
 
+	Notif getCall();
+	void callIgnore(uint32_t uid);
+	void callReject(uint32_t uid);
+
 	void doPos(uint32_t id);
 	void doNeg(uint32_t id);
 
+	// Media controls
+	void doMediaPlay();
+	void doMediaPause();
+	void doMediaNext();
+	void doMediaPrev();
+
+	const MediaInfo& getMedia() const;
+	MediaState getMediaState();
+
 	void findPhoneStart();
 	void findPhoneStop();
+	bool findPhoneActive();
 
 private:
 	ANCS::Client ancs;
+	AMS::Client ams;
 	CurrentTime cTime;
-	Bangle bangle;
+	Android android;
 
 	NotifSource* current = nullptr;
+	MediaSource* mediaCurrent = nullptr;
+
+	MediaInfo currentMedia;
+	MediaState currentMediaState = MediaState::Stopped;
 
 	void onConnect(NotifSource* src);
 	void onDisconnect(NotifSource* src);
+
+	void onMediaConnect(MediaSource* src);
+	void onMediaDisconnect(MediaSource* src);
+
+	void onMediaInfo(const MediaInfo& media);
+	void onMediaState(MediaState state);
 
 	void onAdd(Notif notif);
 	void onModify(Notif notif);
@@ -60,7 +89,6 @@ private:
 	std::deque<Notif> notifs;
 
 	auto findNotif(uint32_t id);
-
 };
 
 
