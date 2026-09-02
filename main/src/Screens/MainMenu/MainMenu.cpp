@@ -2,6 +2,7 @@
 #include "Util/Services.h"
 #include "MenuItemAlt.h"
 #include "Screens/Lock/LockScreen.h"
+#include "Screens/Home.h"
 #include "Screens/Level.h"
 #include "Screens/Theremin/Theremin.h"
 #include "Screens/PerseCtrl/PerseCtrlScreen.h"
@@ -9,6 +10,7 @@
 #include "Util/stdafx.h"
 #include "LV_Interface/InputLVGL.h"
 #include "Screens/Lander/LunarLander.h"
+#include "Screens/Dice/DiceScreen.h"
 #include "Services/StatusCenter.h"
 
 uint8_t  MainMenu::lastIndex = UINT8_MAX;
@@ -135,7 +137,9 @@ void MainMenu::setupItemPaths(Theme theme){
 	ItemInfos[4].iconPath = THEMED_FILE(Menu, Connection, theme);
 	ItemInfos[4].iconAltPath = THEMED_FILE(Menu, Connection, theme);
 	ItemInfos[5].iconPath = THEMED_FILE(Menu, Rover, theme);
-	ItemInfos[6].iconPath = THEMED_FILE(Menu, Settings, theme);
+	ItemInfos[6].iconPath = THEMED_FILE(Menu, Dice, theme);
+	ItemInfos[7].iconPath = THEMED_FILE(Menu, Clock, theme);
+	ItemInfos[8].iconPath = THEMED_FILE(Menu, Settings, theme);
 }
 
 void MainMenu::resetMenuIndex(){
@@ -211,6 +215,8 @@ void MainMenu::onClick(){
 			[this](){ transition([](){ return std::make_unique<Theremin>(); }); },
 			[](){ },
 			[this](){ transition([](){ return std::make_unique<PerseCtrlScreen>(); }); },
+			[this](){ transition([](){ return std::make_unique<DiceScreen>(); }); },
+			[this](){ transition([](){ return std::make_unique<LockScreen>(); }); },
 			[this](){ transition([](){ return std::make_unique<SettingsScreen>(); }); }
 	};
 
@@ -244,7 +250,7 @@ void MainMenu::handlePhoneChange(Phone::Event& event){
 
 void MainMenu::handleInput(Input::Data& event){
 	if(event.btn == Input::Alt && event.action == Input::Data::Press){
-		transition([](){ return std::make_unique<LockScreen>(); });
+		transition([](){ return makeHomeScreen(); });
 	}
 }
 

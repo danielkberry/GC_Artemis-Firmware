@@ -22,12 +22,15 @@ static std::string mac2str(uint8_t ar[]){
 }
 
 WiFiSTA::WiFiSTA() : hysteresis({0, 20, 40, 60, 80}, 1){
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	// May already exist if WiFiHome (status face) ran first — both are fine.
+	esp_err_t loopErr = esp_event_loop_create_default();
+	if(loopErr != ESP_OK && loopErr != ESP_ERR_INVALID_STATE) ESP_ERROR_CHECK(loopErr);
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-	ESP_ERROR_CHECK(esp_netif_init());
+	esp_err_t netifErr = esp_netif_init();
+	if(netifErr != ESP_OK && netifErr != ESP_ERR_INVALID_STATE) ESP_ERROR_CHECK(netifErr);
 	netif = createNetif();
 
 	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));

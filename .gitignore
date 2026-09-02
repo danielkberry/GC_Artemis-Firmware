@@ -7,3 +7,5 @@ sdkconfig*
 !sdkconfig
 
 spiffs.bin
+# WiFi credentials (see Secrets.example.hpp)
+main/src/Secrets.hpp

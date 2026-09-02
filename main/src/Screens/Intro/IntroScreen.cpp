@@ -1,6 +1,7 @@
 #include "IntroScreen.h"
 #include "Util/stdafx.h"
 #include "Screens/Lock/LockScreen.h"
+#include "Screens/Home.h"
 #include "LV_Interface/FSLVGL.h"
 #include "Filepaths.hpp"
 #include "Services/StatusCenter.h"
@@ -63,7 +64,7 @@ void IntroScreen::loop(){
 	}else if(state == Waiting && millis() - animTime >= WaitTime){
 		currentIndex++;
 		if(currentIndex >= 3){
-			transition([](){ return std::make_unique<LockScreen>(); });
+			transition([](){ return makeHomeScreen(); });
 			return;
 		}else if(currentIndex >= 2){
 			gotoPhase2();

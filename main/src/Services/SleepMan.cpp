@@ -1,6 +1,7 @@
 #include "SleepMan.h"
 #include <esp_log.h>
 #include "Screens/Lock/LockScreen.h"
+#include "Screens/Home.h"
 #include "Util/Services.h"
 #include "Screens/ShutdownScreen.h"
 #include <esp_sleep.h>
@@ -78,7 +79,7 @@ void SleepMan::goSleep(){
 		}
 
 		if(!nsBlocked){
-			lvgl.startScreen([](){ return std::make_unique<LockScreen>(); });
+			lvgl.startScreen([](){ return makeHomeScreen(); });
 		}
 		lv_timer_handler();
 	});

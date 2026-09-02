@@ -31,6 +31,7 @@
 #include "Services/Time.h"
 #include "Services/StatusCenter.h"
 #include "Services/SleepMan.h"
+#include "Services/StatusService.h"
 #include "Screens/ShutdownScreen.h"
 #include "Screens/Lock/LockScreen.h"
 #include "JigHWTest/JigHWTest.h"
@@ -176,6 +177,10 @@ void init(){
 	Services.set(Service::Phone, phone);
 
 	srand(esp_random());
+
+	// Box status for the home screen: joins WiFi, polls status.json every 30 s.
+	auto boxStatus = new StatusService();
+	Services.set(Service::BoxStatus, boxStatus);
 
 	FSLVGL::loadCache(settings->get().themeData.theme);
 

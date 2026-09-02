@@ -4,6 +4,7 @@
 #include "Util/Services.h"
 #include "Notifs/Phone.h"
 #include "Screens/Lock/LockScreen.h"
+#include "Screens/Home.h"
 #include "Services/StatusCenter.h"
 
 CallScreen::CallScreen() : evts(6){
@@ -13,7 +14,7 @@ CallScreen::CallScreen() : evts(6){
 	if(notif.category != Notif::Category::IncomingCall){
 		lv_async_call([](void* data){
 			auto scr = (CallScreen*) data;
-			scr->transition([](){ return std::make_unique<LockScreen>(); });
+			scr->transition([](){ return makeHomeScreen(); });
 		}, this);
 		return;
 	}
@@ -30,13 +31,13 @@ CallScreen::~CallScreen(){
 void CallScreen::onIgnore(){
 	auto phone = (Phone* ) Services.get(Service::Phone);
 	phone->callIgnore(notif.uid);
-	transition([](){ return std::make_unique<LockScreen>(); });
+	transition([](){ return makeHomeScreen(); });
 }
 
 void CallScreen::onReject(){
 	auto phone = (Phone* ) Services.get(Service::Phone);
 	phone->callReject(notif.uid);
-	transition([](){ return std::make_unique<LockScreen>(); });
+	transition([](){ return makeHomeScreen(); });
 }
 
 void CallScreen::loop(){
@@ -46,7 +47,7 @@ void CallScreen::loop(){
 			auto data = (Phone::Event*) evt.data;
 			if(data->action == Phone::Event::Removed && data->data.addChgRem.id == notif.uid){
 				free(evt.data);
-				transition([](){ return std::make_unique<LockScreen>(); });
+				transition([](){ return makeHomeScreen(); });
 				return;
 			}
 		}else if(evt.facility == Facility::Input){
