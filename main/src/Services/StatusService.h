@@ -27,8 +27,11 @@ public:
 	enum class NetState { Off, Connecting, Connected, Failed };
 
 	struct Event {
-		enum { Updated, FetchFailed, NetChanged } action;
+		enum { Updated, FetchFailed, NetChanged, NewAlert } action;
 	};
+
+	/** Fire the new-alert buzz + LED pattern by hand (diagnostics). */
+	void alertFeedback();
 
 	/** Copy of the newest successfully parsed payload. False if none yet. */
 	bool getLatest(StatusData& out);
@@ -73,6 +76,9 @@ private:
 	void dropWifi();
 	void doFetch();
 	void setNet(NetState s);
+	void checkAlerts(const StatusData& d);
+	bool alertBaselineSet = false;
+	uint32_t seenAlertSince = 0;
 
 	static uint32_t millis();
 };

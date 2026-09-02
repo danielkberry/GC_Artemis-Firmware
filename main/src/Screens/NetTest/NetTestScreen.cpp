@@ -40,7 +40,7 @@ NetTestScreen::NetTestScreen() : worker([this](){ workerFunc(); }, "nettest", 81
 		lv_obj_set_pos(lines[i], 1, 2 + i * 11);
 		lv_label_set_text(lines[i], "");
 	}
-	say("NET TEST  (Alt: home)");
+	say("NET TEST  Alt:home Dn:alert");
 }
 
 NetTestScreen::~NetTestScreen() = default;
@@ -95,6 +95,11 @@ void NetTestScreen::loop(){
 					return;
 				}else if(in->btn == Input::Select && workerDone){
 					runRequested = true;
+				}else if(in->btn == Input::Down){
+					if(auto svc = (StatusService*) Services.get(Service::BoxStatus)){
+						say("test: alert feedback");
+						svc->alertFeedback();
+					}
 				}
 			}
 		}

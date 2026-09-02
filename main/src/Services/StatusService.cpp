@@ -5,6 +5,8 @@
 #include "Secrets.hpp"
 #include "Sleep.h"
 #include "StatusFetch.h"
+#include "StatusCenter.h"
+#include "Util/Services.h"
 
 static const char* TAG = "StatusService";
 
@@ -167,9 +169,33 @@ void StatusService::doFetch(){
 		lastError.clear();
 	}
 	failures = 0;
+	checkAlerts(d);
 	ESP_LOGI(TAG, "updated: gpu %u%% %dC, %u model(s), build rc=%d, %u alerts, %lu ms",
 			 d.gpu.utilPct, d.gpu.tempC, (unsigned) d.ollama.models.size(), d.binhost.lastRc, d.alerts.firing, (unsigned long) r.ms);
 	Events::post(Facility::Status, Event{ Event::Updated });
+}
+
+void StatusService::checkAlerts(const StatusData& d){
+	if(!d.alerts.valid) return;
+	// First payload sets the baseline silently: a reboot must not re-announce an old alert.
+	if(!alertBaselineSet){
+		alertBaselineSet = true;
+		seenAlertSince = d.alerts.latestSince;
+		return;
+	}
+	if(d.alerts.latestSince > seenAlertSince){
+		seenAlertSince = d.alerts.latestSince;
+		const char* name = d.alerts.items.empty() ? "?" : d.alerts.items.front().name.c_str();
+		ESP_LOGW(TAG, "NEW ALERT: %s", name);
+		alertFeedback();
+		Events::post(Facility::Status, Event{ Event::NewAlert });
+	}
+}
+
+void StatusService::alertFeedback(){
+	if(auto status = (StatusCenter*) Services.get(Service::Status)){
+		status->alert();
+	}
 }
 
 // ───────────────────────────── parsing ─────────────────────────────────────
@@ -210,10 +236,15 @@ bool StatusService::parse(const std::string& body, StatusData& d){
 		d.host.valid = true;
 		d.host.name = str(h, "name");
 		d.host.uptimeS = (uint32_t) num(h, "uptime_s");
+		d.host.cpuPct = (uint8_t) num(h, "cpu_pct");
+		d.host.cores = (uint8_t) num(h, "cores");
 		d.host.load1 = (float) num(h, "load1");
 		d.host.memUsedPct = (uint8_t) num(h, "mem_used_pct");
+		d.host.memTotalGb = (float) num(h, "mem_total_gb");
 		d.host.cpuTempC = (int16_t) num(h, "cpu_temp_c");
+		d.host.rootUsedPct = (uint8_t) num(h, "root_used_pct");
 		d.host.rootFreeGb = (float) num(h, "root_free_gb");
+		d.host.flashUsedPct = (uint8_t) num(h, "flash_used_pct");
 		d.host.flashFreeGb = (float) num(h, "flash_free_gb");
 	}
 	if(cJSON* g = block(root, "gpu")){
@@ -254,6 +285,14 @@ bool StatusService::parse(const std::string& body, StatusData& d){
 		cJSON_ArrayForEach(n, names){
 			if(cJSON_IsString(n) && n->valuestring) d.alerts.names.push_back(n->valuestring);
 		}
+		cJSON* items = cJSON_GetObjectItemCaseSensitive(a, "items");
+		cJSON* it;
+		cJSON_ArrayForEach(it, items){
+			if(!cJSON_IsObject(it)) continue;
+			StatusData::AlertItem ai{ str(it, "name"), str(it, "severity"), (uint32_t) num(it, "since") };
+			if(!ai.name.empty()) d.alerts.items.push_back(ai);
+		}
+		d.alerts.latestSince = (uint32_t) num(a, "latest_since");
 	}
 	if(cJSON* c = block(root, "containers")){
 		d.containers.valid = true;

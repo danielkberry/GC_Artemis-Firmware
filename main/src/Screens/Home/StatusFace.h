@@ -10,7 +10,8 @@
 
 /**
  * Home screen for the watch mounted on the inference box: clock + the box's status
- * (GPU, resident model, binhost, alerts). Select opens the main menu, Alt sleeps.
+ * (CPU, RAM, disks, binhost, alerts). Select opens the main menu, Down the GPU page,
+ * Up the network diagnostics, Alt sleeps.
  *
  * Data comes from StatusService (Facility::Status events); until the first fetch lands it
  * shows "waiting" placeholders.
@@ -41,9 +42,10 @@ private:
 		lv_obj_t* bar;
 		lv_obj_t* value;
 	};
-	BarRow gpuRow{};
-	BarRow vramRow{};
-	lv_obj_t* modelLabel;
+	BarRow cpuRow{};
+	BarRow ramRow{};
+	BarRow rootRow{};
+	BarRow flashRow{};
 	lv_obj_t* binhostLabel;
 	lv_obj_t* alertsLabel;
 	lv_obj_t* footerLabel;

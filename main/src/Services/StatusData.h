@@ -18,10 +18,15 @@ struct StatusData {
 		bool valid = false;
 		std::string name;
 		uint32_t uptimeS = 0;
+		uint8_t cpuPct = 0;      // 1-min all-core average
+		uint8_t cores = 0;
 		float load1 = 0;
 		uint8_t memUsedPct = 0;
+		float memTotalGb = 0;
 		int16_t cpuTempC = 0;
+		uint8_t rootUsedPct = 0;
 		float rootFreeGb = 0;
+		uint8_t flashUsedPct = 0;
 		float flashFreeGb = 0;
 	} host;
 
@@ -51,10 +56,17 @@ struct StatusData {
 		uint16_t failed = 0;
 	} binhost;
 
+	struct AlertItem {
+		std::string name;
+		std::string severity;
+		uint32_t since = 0;   // activeAt epoch
+	};
 	struct {
 		bool valid = false;
 		uint8_t firing = 0;
 		std::vector<std::string> names;
+		std::vector<AlertItem> items;
+		uint32_t latestSince = 0;  // newest activeAt among firing alerts; moves forward on a new firing
 	} alerts;
 
 	struct {
@@ -69,11 +81,11 @@ struct StatusData {
 	static StatusData sample(){
 		StatusData d;
 		d.ts = 1788321008;
-		d.host = { true, "inference", 1415462, 3.02f, 34, 45, 231.3f, 586.9f };
+		d.host = { true, "inference", 1415462, 13, 12, 3.02f, 34, 15.5f, 45, 52, 231.3f, 40, 586.9f };
 		d.gpu = { true, "GTX 1660", 0, 31, 91, 6144, 5.1f, 46 };
 		d.ollama = { true, {} };
 		d.binhost = { true, 0, 1788311631, 1788311631, false, 2, 0 };
-		d.alerts = { true, 0, {} };
+		d.alerts = { true, 0, {}, {}, 0 };
 		d.containers = { true, 56, 0 };
 		return d;
 	}

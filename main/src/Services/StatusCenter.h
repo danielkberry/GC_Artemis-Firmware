@@ -28,6 +28,8 @@ public:
 	void blinkRand();
 	void blinkAll();
 	void blinkAllTwice();
+	/** New monitoring alert from the box: red RGB blinks, all LEDs twice, three rising chirps. */
+	void alert();
 
 private:
 	EventQueue events;

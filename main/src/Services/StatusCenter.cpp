@@ -142,6 +142,24 @@ void StatusCenter::beep(){
 	});
 }
 
+void StatusCenter::alert(){
+	if(settings.get().ledEnable){
+		led->blinkContinuous({ 255, 0, 0 }, 4, 150, 150);
+		for(const auto& singleLed : singleLeds){
+			singleLed->blinkTwice(0xff, 120, 120);
+		}
+	}
+	if(!audioBlocked){
+		chirp.play({
+			Chirp{ .startFreq = 700, .endFreq = 700, .duration = 90 },
+			Chirp{ .startFreq = 0, .endFreq = 0, .duration = 60 },
+			Chirp{ .startFreq = 900, .endFreq = 900, .duration = 90 },
+			Chirp{ .startFreq = 0, .endFreq = 0, .duration = 60 },
+			Chirp{ .startFreq = 1200, .endFreq = 1200, .duration = 160 }
+		});
+	}
+}
+
 void StatusCenter::shutdown(){
 	led->setSolid({ 150, 0, 0 });
 	vTaskDelay(SleepMan::ShutdownTime-100);

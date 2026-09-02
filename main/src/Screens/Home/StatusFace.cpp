@@ -7,6 +7,7 @@
 #include "Services/SleepMan.h"
 #include "Screens/MainMenu/MainMenu.h"
 #include "Screens/NetTest/NetTestScreen.h"
+#include "Screens/Home/GpuDetail.h"
 
 StatusFace::StatusFace() : ts(*((Time*) Services.get(Service::Time))), service((StatusService*) Services.get(Service::BoxStatus)), queue(8){
 	haveData = service && service->getLatest(data);
@@ -47,9 +48,10 @@ StatusFace::StatusFace() : ts(*((Time*) Services.get(Service::Time))), service((
 	lv_obj_set_pos(hostLabel, Width - 62, StatusBarH + 7);
 
 	lv_coord_t y = StatusBarH + 22;
-	gpuRow = makeBarRow(y, "GPU"); y += RowH;
-	vramRow = makeBarRow(y, "VRAM"); y += RowH;
-	modelLabel = makeTextRow(y); y += RowH;
+	cpuRow = makeBarRow(y, "CPU"); y += RowH;
+	ramRow = makeBarRow(y, "RAM"); y += RowH;
+	rootRow = makeBarRow(y, "NVME"); y += RowH;
+	flashRow = makeBarRow(y, "FLSH"); y += RowH;
 	binhostLabel = makeTextRow(y); y += RowH;
 	alertsLabel = makeTextRow(y); y += RowH;
 
@@ -138,10 +140,11 @@ void StatusFace::render(){
 
 	if(!haveData){
 		lv_label_set_text(hostLabel, "");
-		setBar(gpuRow, 0, "--", false);
-		setBar(vramRow, 0, "--", false);
-		lv_label_set_text(modelLabel, "MODEL waiting for box");
-		lv_label_set_text(binhostLabel, "BUILD --");
+		setBar(cpuRow, 0, "--", false);
+		setBar(ramRow, 0, "--", false);
+		setBar(rootRow, 0, "--", false);
+		setBar(flashRow, 0, "--", false);
+		lv_label_set_text(binhostLabel, "BUILD waiting for box");
 		lv_obj_set_style_text_color(binhostLabel, fg, 0);
 		lv_label_set_text(alertsLabel, "ALERTS --");
 		lv_obj_set_style_text_color(alertsLabel, fg, 0);
@@ -150,29 +153,20 @@ void StatusFace::render(){
 
 	lv_label_set_text(hostLabel, data.host.valid ? data.host.name.c_str() : "");
 
-	if(data.gpu.valid){
-		snprintf(buf, sizeof(buf), "%u%% %dC", data.gpu.utilPct, data.gpu.tempC);
-		setBar(gpuRow, data.gpu.utilPct, buf, data.gpu.tempC >= 80);
+	if(data.host.valid){
+		snprintf(buf, sizeof(buf), "%u%% %.1f", data.host.cpuPct, data.host.load1);
+		setBar(cpuRow, data.host.cpuPct, buf, data.host.cpuPct >= 90 || data.host.cpuTempC >= 85);
+		snprintf(buf, sizeof(buf), "%u%%/%.0fG", data.host.memUsedPct, data.host.memTotalGb);
+		setBar(ramRow, data.host.memUsedPct, buf, data.host.memUsedPct >= 90);
+		snprintf(buf, sizeof(buf), "%.0fG free", data.host.rootFreeGb);
+		setBar(rootRow, data.host.rootUsedPct, buf, data.host.rootUsedPct >= 85);
+		snprintf(buf, sizeof(buf), "%.0fG free", data.host.flashFreeGb);
+		setBar(flashRow, data.host.flashUsedPct, buf, data.host.flashUsedPct >= 90);
 	}else{
-		setBar(gpuRow, 0, "n/a", false);
-	}
-
-	if(data.gpu.valid && data.gpu.vramTotalMb){
-		const uint8_t pct = (uint8_t) ((100u * data.gpu.vramUsedMb) / data.gpu.vramTotalMb);
-		snprintf(buf, sizeof(buf), "%.1f/%.0fG", data.gpu.vramUsedMb / 1024.0f, data.gpu.vramTotalMb / 1024.0f);
-		setBar(vramRow, pct, buf, pct >= 95);
-	}else{
-		setBar(vramRow, 0, "n/a", false);
-	}
-
-	if(!data.ollama.valid){
-		lv_label_set_text(modelLabel, "MODEL n/a");
-	}else if(data.ollama.models.empty()){
-		lv_label_set_text(modelLabel, "MODEL idle");
-	}else{
-		std::string s = "MODEL " + data.ollama.models[0];
-		if(data.ollama.models.size() > 1) s += " +" + std::to_string(data.ollama.models.size() - 1);
-		lv_label_set_text(modelLabel, s.c_str());
+		setBar(cpuRow, 0, "n/a", false);
+		setBar(ramRow, 0, "n/a", false);
+		setBar(rootRow, 0, "n/a", false);
+		setBar(flashRow, 0, "n/a", false);
 	}
 
 	if(!data.binhost.valid){
@@ -301,6 +295,11 @@ void StatusFace::loop(){
 			if(in->btn == Input::Up && in->action == Input::Data::Press){
 				free(evt.data);
 				transition([](){ return std::make_unique<NetTestScreen>(); });
+				return;
+			}
+			if(in->btn == Input::Down && in->action == Input::Data::Press){
+				free(evt.data);
+				transition([](){ return std::make_unique<GpuDetail>(); });
 				return;
 			}
 		}
