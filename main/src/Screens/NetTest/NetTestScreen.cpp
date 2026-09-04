@@ -40,7 +40,7 @@ NetTestScreen::NetTestScreen() : worker([this](){ workerFunc(); }, "nettest", 81
 		lv_obj_set_pos(lines[i], 1, 2 + i * 11);
 		lv_label_set_text(lines[i], "");
 	}
-	say("NET TEST  Alt:home Dn:alert");
+	say("NET  Alt:home Dn:buzz");
 }
 
 NetTestScreen::~NetTestScreen() = default;
@@ -97,7 +97,7 @@ void NetTestScreen::loop(){
 					runRequested = true;
 				}else if(in->btn == Input::Down){
 					if(auto svc = (StatusService*) Services.get(Service::BoxStatus)){
-						say("test: alert feedback");
+						say("test: alert buzz");
 						svc->alertFeedback();
 					}
 				}
@@ -123,24 +123,24 @@ void NetTestScreen::runSequence(){
 	// When StatusService owns the radio, this screen is a diagnostics view of it
 	// (a second esp_wifi_init would abort). Select re-reads; the service refreshes.
 	if(auto svc = (StatusService*) Services.get(Service::BoxStatus)){
-		static const char* NetNames[] = { "off", "connecting", "connected", "FAILED" };
+		static const char* NetNames[] = { "off", "joining", "ok", "FAIL" };
 		svc->requestRefresh();
 		vTaskDelay(pdMS_TO_TICKS(2500));
-		snprintf(buf, sizeof(buf), "svc net %s rssi %d", NetNames[(int) svc->getNetState()], svc->getRssi());
+		snprintf(buf, sizeof(buf), "net %s %ddB", NetNames[(int) svc->getNetState()], svc->getRssi());
 		say(buf);
-		snprintf(buf, sizeof(buf), "last fetch %lums fails %lu", (unsigned long) svc->getLastFetchMs(), (unsigned long) svc->getConsecutiveFailures());
+		snprintf(buf, sizeof(buf), "fetch %lums x%lu", (unsigned long) svc->getLastFetchMs(), (unsigned long) svc->getConsecutiveFailures());
 		say(buf);
 		if(svc->getLastError()[0]) say(std::string("err ") + svc->getLastError());
 		StatusData d;
 		if(svc->getLatest(d)){
-			snprintf(buf, sizeof(buf), "data %lus old ts %lu", (unsigned long) ((nowMs() - d.receivedMs) / 1000), (unsigned long) d.ts);
+			snprintf(buf, sizeof(buf), "data %lus old", (unsigned long) ((nowMs() - d.receivedMs) / 1000));
 			say(buf);
-			snprintf(buf, sizeof(buf), "gpu %u%% %dC vram %u/%uM", d.gpu.utilPct, d.gpu.tempC, d.gpu.vramUsedMb, d.gpu.vramTotalMb);
+			snprintf(buf, sizeof(buf), "gpu %u%% %dC %uM", d.gpu.utilPct, d.gpu.tempC, d.gpu.vramUsedMb);
 			say(buf);
 		}else{
 			say("no data yet");
 		}
-		snprintf(buf, sizeof(buf), "heap int %luk min %luk", (unsigned long) h.internal / 1024, (unsigned long) h.minEverInternal / 1024);
+		snprintf(buf, sizeof(buf), "heap %luk min %luk", (unsigned long) h.internal / 1024, (unsigned long) h.minEverInternal / 1024);
 		say(buf);
 		return;
 	}

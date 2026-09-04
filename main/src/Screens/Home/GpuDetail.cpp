@@ -27,7 +27,7 @@ GpuDetail::GpuDetail() : service((StatusService*) Services.get(Service::BoxStatu
 		lv_obj_set_style_text_font(rows[i], &lv_font_unscii_8, 0);
 		lv_obj_set_style_text_color(rows[i], fg, 0);
 		lv_obj_set_width(rows[i], 124);
-		lv_label_set_long_mode(rows[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
+		lv_label_set_long_mode(rows[i], LV_LABEL_LONG_CLIP);   // every line is kept <= 15 chars
 		lv_obj_set_pos(rows[i], 2, 3 + i * 13);
 		lv_label_set_text(rows[i], "");
 	}
@@ -71,10 +71,10 @@ void GpuDetail::render(){
 	lv_obj_set_style_text_color(rows[1], g.tempC >= 80 ? warn : fg, 0);
 	lv_bar_set_value(utilBar, g.utilPct, LV_ANIM_OFF);
 	const uint8_t vramPct = g.vramTotalMb ? (uint8_t) ((100u * g.vramUsedMb) / g.vramTotalMb) : 0;
-	snprintf(buf, sizeof(buf), "vram %u/%u MB (%u%%)", g.vramUsedMb, g.vramTotalMb, vramPct);
+	snprintf(buf, sizeof(buf), "vram %u/%uM", g.vramUsedMb, g.vramTotalMb);
 	lv_label_set_text(rows[3], buf);
 	lv_bar_set_value(vramBar, vramPct, LV_ANIM_OFF);
-	snprintf(buf, sizeof(buf), "power %.1f W  fan %u%%", g.powerW, g.fanPct);
+	snprintf(buf, sizeof(buf), "%.1fW  fan %u%%", g.powerW, g.fanPct);
 	lv_label_set_text(rows[5], buf);
 	if(!d.ollama.valid){
 		lv_label_set_text(rows[6], "model n/a");
@@ -84,9 +84,9 @@ void GpuDetail::render(){
 		snprintf(buf, sizeof(buf), "model %s", d.ollama.models[0].c_str());
 		lv_label_set_text(rows[6], buf);
 	}
-	snprintf(buf, sizeof(buf), "cpu %dC  load %.2f/%u", d.host.cpuTempC, d.host.load1, d.host.cores);
+	snprintf(buf, sizeof(buf), "cpu %dC ld %.1f", d.host.cpuTempC, d.host.load1);
 	lv_label_set_text(rows[7], buf);
-	snprintf(buf, sizeof(buf), "up %lud %luh  %u ctr", (unsigned long) (d.host.uptimeS / 86400), (unsigned long) ((d.host.uptimeS % 86400) / 3600),
+	snprintf(buf, sizeof(buf), "up %lud%luh %uctr", (unsigned long) (d.host.uptimeS / 86400), (unsigned long) ((d.host.uptimeS % 86400) / 3600),
 			 d.containers.valid ? d.containers.running : 0);
 	lv_label_set_text(rows[8], buf);
 }
