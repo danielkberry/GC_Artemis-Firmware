@@ -40,12 +40,7 @@ StatusFace::StatusFace() : ts(*((Time*) Services.get(Service::Time))), service((
 	lv_label_set_text(clockLabel, "--:--");
 
 	hostLabel = lv_label_create(bg);
-	lv_obj_set_style_text_font(hostLabel, &lv_font_unscii_8, 0);
-	lv_obj_set_style_text_color(hostLabel, fg, 0);
-	lv_obj_set_style_text_opa(hostLabel, LV_OPA_70, 0);
-	lv_obj_set_style_text_align(hostLabel, LV_TEXT_ALIGN_RIGHT, 0);
-	lv_obj_set_width(hostLabel, 60);
-	lv_obj_set_pos(hostLabel, Width - 62, StatusBarH + 7);
+	lv_obj_add_flag(hostLabel, LV_OBJ_FLAG_HIDDEN); // the box's name is known; it collided with the clock
 
 	lv_coord_t y = StatusBarH + 22;
 	cpuRow = makeBarRow(y, "CPU"); y += RowH;
@@ -58,9 +53,9 @@ StatusFace::StatusFace() : ts(*((Time*) Services.get(Service::Time))), service((
 	footerLabel = lv_label_create(bg);
 	lv_obj_set_style_text_font(footerLabel, &lv_font_unscii_8, 0);
 	lv_obj_set_style_text_color(footerLabel, fg, 0);
-	lv_obj_set_style_text_opa(footerLabel, LV_OPA_60, 0);
+	lv_label_set_long_mode(footerLabel, LV_LABEL_LONG_CLIP);
 	lv_obj_set_width(footerLabel, Width - 4);
-	lv_obj_set_pos(footerLabel, 2, 128 - 10);
+	lv_obj_set_pos(footerLabel, 2, 128 - 11);
 
 	render();
 	updateClock();
@@ -94,6 +89,7 @@ StatusFace::BarRow StatusFace::makeBarRow(lv_coord_t y, const char* name){
 	lv_obj_set_style_pad_all(row.bar, 0, 0);
 
 	row.value = lv_label_create(bg);
+	lv_label_set_long_mode(row.value, LV_LABEL_LONG_CLIP);
 	lv_obj_set_style_text_font(row.value, &lv_font_unscii_8, 0);
 	lv_obj_set_style_text_color(row.value, fg, 0);
 	lv_obj_set_style_text_align(row.value, LV_TEXT_ALIGN_RIGHT, 0);
@@ -106,7 +102,7 @@ lv_obj_t* StatusFace::makeTextRow(lv_coord_t y){
 	lv_obj_t* label = lv_label_create(bg);
 	lv_obj_set_style_text_font(label, &lv_font_unscii_8, 0);
 	lv_obj_set_style_text_color(label, fg, 0);
-	lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+	lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
 	lv_obj_set_width(label, Width - 4);
 	lv_obj_set_pos(label, 2, y + 2);
 	return label;
@@ -154,13 +150,13 @@ void StatusFace::render(){
 	lv_label_set_text(hostLabel, data.host.valid ? data.host.name.c_str() : "");
 
 	if(data.host.valid){
-		snprintf(buf, sizeof(buf), "%u%% %.1f", data.host.cpuPct, data.host.load1);
+		snprintf(buf, sizeof(buf), "%u%%", data.host.cpuPct);
 		setBar(cpuRow, data.host.cpuPct, buf, data.host.cpuPct >= 90 || data.host.cpuTempC >= 85);
-		snprintf(buf, sizeof(buf), "%u%%/%.0fG", data.host.memUsedPct, data.host.memTotalGb);
+		snprintf(buf, sizeof(buf), "%u%%", data.host.memUsedPct);
 		setBar(ramRow, data.host.memUsedPct, buf, data.host.memUsedPct >= 90);
-		snprintf(buf, sizeof(buf), "%.0fG free", data.host.rootFreeGb);
+		snprintf(buf, sizeof(buf), "%.0fG", data.host.rootFreeGb);   // free
 		setBar(rootRow, data.host.rootUsedPct, buf, data.host.rootUsedPct >= 85);
-		snprintf(buf, sizeof(buf), "%.0fG free", data.host.flashFreeGb);
+		snprintf(buf, sizeof(buf), "%.0fG", data.host.flashFreeGb);  // free
 		setBar(flashRow, data.host.flashUsedPct, buf, data.host.flashUsedPct >= 90);
 	}else{
 		setBar(cpuRow, 0, "n/a", false);
@@ -180,9 +176,9 @@ void StatusFace::render(){
 		if(data.binhost.running){
 			snprintf(buf, sizeof(buf), "BUILD running");
 		}else if(bad){
-			snprintf(buf, sizeof(buf), "BUILD FAIL rc=%d %s", data.binhost.lastRc, age.c_str());
+			snprintf(buf, sizeof(buf), "BUILD FAIL %s ago", age.c_str());
 		}else{
-			snprintf(buf, sizeof(buf), "BUILD ok %s ago (%u pkg)", age.c_str(), data.binhost.merged);
+			snprintf(buf, sizeof(buf), "BUILD ok %s ago", age.c_str());
 		}
 		lv_label_set_text(binhostLabel, buf);
 		lv_obj_set_style_text_color(binhostLabel, bad ? warn : fg, 0);
@@ -192,12 +188,14 @@ void StatusFace::render(){
 		lv_label_set_text(alertsLabel, "ALERTS n/a");
 		lv_obj_set_style_text_color(alertsLabel, fg, 0);
 	}else if(data.alerts.firing == 0){
-		snprintf(buf, sizeof(buf), "ALERTS none  %u ctr", data.containers.valid ? data.containers.running : 0);
-		lv_label_set_text(alertsLabel, buf);
+		lv_label_set_long_mode(alertsLabel, LV_LABEL_LONG_CLIP);
+		lv_label_set_text(alertsLabel, "ALERTS none");
 		lv_obj_set_style_text_color(alertsLabel, fg, 0);
 	}else{
 		std::string s = "ALERTS " + std::to_string(data.alerts.firing) + ":";
 		for(const auto& n : data.alerts.names) s += " " + n;
+		s += "   ";
+		lv_label_set_long_mode(alertsLabel, LV_LABEL_LONG_SCROLL_CIRCULAR); // names are worth reading
 		lv_label_set_text(alertsLabel, s.c_str());
 		lv_obj_set_style_text_color(alertsLabel, warn, 0);
 	}
@@ -228,21 +226,21 @@ void StatusFace::updateFooter(){
 	bool bad = false;
 	if(service){
 		switch(service->getNetState()){
-			case StatusService::NetState::Off: net = "wifi off"; break;
-			case StatusService::NetState::Connecting: net = "wifi..."; break;
-			case StatusService::NetState::Connected: net = "wifi ok"; break;
-			case StatusService::NetState::Failed: net = "wifi FAIL"; bad = true; break;
+			case StatusService::NetState::Off: net = "off"; break;
+			case StatusService::NetState::Connecting: net = "join"; break;
+			case StatusService::NetState::Connected: net = "ok"; break;
+			case StatusService::NetState::Failed: net = "FAIL"; bad = true; break;
 		}
 	}
 	if(!haveData || data.receivedMs == 0){
-		snprintf(buf, sizeof(buf), "%s  no data yet", net);
+		snprintf(buf, sizeof(buf), "%s no data", net);
 	}else{
 		const uint32_t age = (millis() - data.receivedMs) / 1000;
 		if(age > 120) bad = true;
 		if(service && service->getConsecutiveFailures() > 0){
-			snprintf(buf, sizeof(buf), "%s  %s old (%lu fail)", net, ago(age).c_str(), (unsigned long) service->getConsecutiveFailures());
+			snprintf(buf, sizeof(buf), "%s %s x%lu", net, ago(age).c_str(), (unsigned long) service->getConsecutiveFailures());
 		}else{
-			snprintf(buf, sizeof(buf), "%s  %s old  %ddBm", net, ago(age).c_str(), service ? service->getRssi() : 0);
+			snprintf(buf, sizeof(buf), "%s %s %ddB", net, ago(age).c_str(), service ? service->getRssi() : 0);
 		}
 	}
 	lv_label_set_text(footerLabel, buf);

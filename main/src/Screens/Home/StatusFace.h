@@ -57,8 +57,8 @@ private:
 	static constexpr lv_coord_t Width = 128;
 	static constexpr lv_coord_t StatusBarH = 15;
 	static constexpr lv_coord_t RowH = 12;
-	static constexpr lv_coord_t LabelW = 30;
-	static constexpr lv_coord_t ValueW = 36;
+	static constexpr lv_coord_t LabelW = 34;   // 4 chars of unscii_8 + gap
+	static constexpr lv_coord_t ValueW = 42;   // 5 chars of unscii_8
 
 	BarRow makeBarRow(lv_coord_t y, const char* name);
 	lv_obj_t* makeTextRow(lv_coord_t y);
